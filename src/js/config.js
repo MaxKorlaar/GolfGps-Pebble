@@ -132,7 +132,7 @@ module.exports = [
 			{
 				"type": "input",
 				"appKey": "club2_distance",
-				"defaultValue": 0,
+				"defaultValue": 210,
 				"label": "club 2 distance",
 				"attributes": {
 					"type": "number"

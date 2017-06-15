@@ -56,11 +56,12 @@
     "shortName": "Golf GPS",
     "targetPlatforms": [
         "aplite",
-        "basalt"
+        "basalt",
+        "chalk"
     ],
     "uuid": "08317354-b7e2-412e-a7f9-cd9f7ae981ed",
     "versionCode": 1,
-    "versionLabel": "1.16",
+    "versionLabel": "1.17",
     "watchapp": {
         "hiddenApp": false,
         "watchface": false

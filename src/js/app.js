@@ -45,12 +45,14 @@ Pebble.addEventListener('webviewclosed', function(e) {
   // Save the Clay settings to the Settings module. 
   Settings.option(dict);
 	options = Settings.option();
+	console.log(JSON.stringify(options));
+	
 	setSettings();
-	console.log(JSON.stringify(Settings));
+	
 });
 
 function setSettings(){
-	
+	console.log("setSettings()");
 	//optionsArray = ["units","email"]
 	if(!('units' in options))options.units = "meters";
 	if(!('email' in options))options.email = "";
@@ -83,7 +85,7 @@ function setSettings(){
 		
 	}
 	console.log(JSON.stringify(clubs));
-	if(typeof clubMenu==='object')clubsMenuItems();
+	if(typeof clubsMenu==='object')clubsMenuItems();
 }
 setSettings();
 
@@ -229,8 +231,9 @@ courseWindow.on('click',"down", function(e) {
 courseWindow.on('click','select', function(e) {
 	courseSelected = 1;
 	
-	//console.log(JSON.stringify(course));
+	
 	holes = course.holes;
+	console.log(JSON.stringify(course));
 	hole = 0;	
 	var closestDistanceToHole = 999;
 	for(var i = 1;i<=course.holeCount;i++){
@@ -430,12 +433,17 @@ function previousItem(){
 	hazardNum--;
 	if(hazardNum<0){
 		hole--;
+		
 		if(hole===0)hole=course.holeCount;
 		item = holes[hole].green;
 		hazardNum = holes[hole].items.length;
 	}else{
 		item = holes[hole].items[hazardNum];
 	}
+	console.log("hole "+hole);
+	console.log("hazard "+hazardNum);
+	console.log("holes "+JSON.stringify(holes));
+	console.log("item "+JSON.stringify(item));
 	
 	holeNumber.text(hole+" "+item.type);	updateDistanceWindow();
 }
@@ -446,19 +454,18 @@ distanceWindow.on('click',"select", function(e) {
 
 function startTracking(){
 	//If no club is tracked
-	if(trackingClub===-2){
-		trackingClub=-1;
+	console.log("start tracking. tracking club:"+trackingClub);
+	if(trackingClub<0){
 		if("middle" in item)clubSuggest(distance(item.middle));
 		else clubSuggest(distance(item.front));
-		//console.log("suggest club: "+clubNumSuggest);
+		console.log("suggest club: "+clubNumSuggest);
 		clubsMenu.selection(0,clubNumSuggest);
 		
 		trackingFrom.lat = position.coords.latitude;
 		trackingFrom.lon = position.coords.longitude;
-		
 		clubsMenu.show();
 		
-	}else if(trackingClub>=0){
+	}else {
 		trackingWindow.show();
 		updateDistanceWindow();
 	}
@@ -534,9 +541,11 @@ var clubsMenu = new UI.Menu({
 });
 
 function clubsMenuItems(){
+	console.log("bulding club menu");
 	clubMenuItems = [];
 	for(var i=0;i<clubs.length;i++){
 		clubMenuItems.push({title:clubs[i].name+" "+clubs[i].distance,id:i});
+		console.log(clubs[i].name+" "+clubs[i].distance);
 	}
 	clubsMenu.items(0, clubMenuItems);
 }
