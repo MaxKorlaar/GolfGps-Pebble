@@ -50,6 +50,10 @@ cmake-build-*/
 
 # IntelliJ
 out/
+build/
+.lock-waf*
+.idea/modules.xml
+.idea/$CACHE_FILE$
 
 # mpeltonen/sbt-idea plugin
 .idea_modules/
