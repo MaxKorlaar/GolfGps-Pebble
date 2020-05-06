@@ -1,69 +1,67 @@
 {
-    "appKeys": {},
-    "capabilities": [
-        "location",
-        "configurable"
-    ],
-    "companyName": "Smart Golf",
-    "longName": "GOLF GPS range finder",
-    "projectType": "pebblejs",
-    "resources": {
-        "media": [
-            {
-                "file": "images/menu_icon.png",
-                "name": "IMAGE_MENU_ICON",
-                "type": "bitmap"
-            },
-            {
-                "file": "images/logo_splash.png",
-                "name": "IMAGE_LOGO_SPLASH",
-                "type": "bitmap"
-            },
-            {
-                "file": "images/tile_splash.png",
-                "name": "IMAGE_TILE_SPLASH",
-                "type": "bitmap"
-            },
-            {
-                "file": "fonts/UbuntuMono-Regular.ttf",
-                "name": "MONO_FONT_14",
-                "type": "font"
-            },
-            {
-                "file": "images/golfer.png",
-                "menuIcon": true,
-                "name": "IMAGES_GOLFER_PNG",
-                "type": "png"
-            },
-            {
-                "file": "images/play.png",
-                "name": "IMAGES_PLAY_PNG",
-                "type": "png"
-            },
-            {
-                "file": "images/up_arrow.png",
-                "name": "IMAGES_UP_ARROW_PNG",
-                "type": "png"
-            },
-            {
-                "file": "images/down_arrow.png",
-                "name": "IMAGES_DOWN_ARROW_PNG",
-                "type": "png"
-            }
-        ]
-    },
-    "sdkVersion": "3",
-    "shortName": "Golf GPS",
-    "targetPlatforms": [
-        "aplite",
-        "basalt",
-        "chalk"
-    ],
-    "uuid": "08317354-b7e2-412e-a7f9-cd9f7ae981ed",
-    "versionCode": 1,
-    "versionLabel": "1.17",
-    "watchapp": {
-        "hiddenApp": false,
-        "watchface": false
-    }
+  "appKeys": {},
+  "capabilities": [
+    "configurable",
+    "location"
+  ],
+  "companyName": "Meiguro",
+  "longName": "Pebble.js",
+  "resources": {
+    "media": [
+      {
+        "file": "images/menu_icon.png",
+        "name": "IMAGE_MENU_ICON",
+        "type": "bitmap"
+      },
+      {
+        "file": "images/logo_splash.png",
+        "name": "IMAGE_LOGO_SPLASH",
+        "type": "bitmap"
+      },
+      {
+        "file": "images/tile_splash.png",
+        "name": "IMAGE_TILE_SPLASH",
+        "type": "bitmap"
+      },
+      {
+        "file": "fonts/UbuntuMono-Regular.ttf",
+        "name": "MONO_FONT_14",
+        "type": "font"
+      },
+      {
+        "file": "images/golfer.png",
+        "menuIcon": true,
+        "name": "IMAGES_GOLFER_PNG",
+        "type": "png"
+      },
+      {
+        "file": "images/play.png",
+        "name": "IMAGES_PLAY_PNG",
+        "type": "png"
+      },
+      {
+        "file": "images/up_arrow.png",
+        "name": "IMAGES_UP_ARROW_PNG",
+        "type": "png"
+      },
+      {
+        "file": "images/down_arrow.png",
+        "name": "IMAGES_DOWN_ARROW_PNG",
+        "type": "png"
+      }
+    ]
+  },
+  "sdkVersion": "3",
+  "shortName": "Pebble.js",
+  "targetPlatforms": [
+    "aplite",
+    "basalt",
+    "chalk"
+  ],
+  "uuid": "133215f0-cf20-4c05-997b-3c9be5a64e5b",
+  "versionCode": 1,
+  "versionLabel": "0.4",
+  "watchapp": {
+    "watchface": false
+  }
 }
