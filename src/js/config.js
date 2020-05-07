@@ -15,16 +15,6 @@ module.exports = [
                 "defaultValue": "User settings"
             },
             {
-                "type":         "input",
-                "appKey":       "email",
-                "defaultValue": "",
-                "label":        "Email Address",
-                "attributes":   {
-                    "placeholder": "eg: name@domain.com",
-                    "type":        "email"
-                }
-            },
-            {
                 "type":         "select",
                 "appKey":       "units",
                 "defaultValue": "meters",
@@ -52,6 +42,18 @@ module.exports = [
             {
                 "type":         "heading",
                 "defaultValue": "App settings"
+            },
+            {
+                "type":         "toggle",
+                "appKey":       "largerText",
+                "label":        "Larger numbers",
+                "defaultValue": 0
+            },
+            {
+                "type":         "toggle",
+                "appKey":       "invertColors",
+                "label":        "Invert colors",
+                "defaultValue": 0
             },
             {
                 "type":         "toggle",

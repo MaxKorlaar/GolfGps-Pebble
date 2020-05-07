@@ -12,13 +12,15 @@ var clayConfig = require('config');
 var clay       = new Clay(clayConfig);
 
 //global variables
-var position  = {};
-var player    = 0;//2 = looping hole 2
-var course    = {};
-var holes     = {};
-var hole      = 1;
-var item;//The current target of the distances screen
-var hazardNum = 0;//the current item Num
+var currentPosition = {};
+var player          = 0;//2 = looping hole 2
+var course          = {};
+var holes           = {};
+var hole            = 1;
+
+var currentDistanceTarget; //The current target of the distances screen
+
+var hazardNum = 0;//the current currentDistanceTarget Num
 var options   = Settings.option();
 var clubs     = [];
 
@@ -57,9 +59,10 @@ function setSettings() {
     console.log("setSettings()");
 
     if (!('units' in options)) options.units = "meters";
-    if (!('email' in options)) options.email = "";
     if (!('searchRadius' in options)) options.searchRadius = 50;
     if (!('swingDetection' in options)) options.swingDetection = true;
+    if (!('largerText' in options)) options.largerText = false;
+    if (!('invertColors' in options)) options.invertColors = false;
 
     //Settings the clubs
     clubs = [];
@@ -68,8 +71,11 @@ function setSettings() {
         var clubName     = options["club" + i + "_name"];
         if (clubDistance > 0 && clubName !== '') clubs.push({name: clubName, distance: clubDistance, setting_id: i});
     }
-    //Sort clubs for large distance to small one
-    clubs.sort(function (a, b) { return (a.distance < b.distance) ? 1 : ((b.distance < a.distance) ? -1 : 0); });
+    //Sort clubs for large calculateDistance to small one
+    clubs.sort(function (a, b) {
+        return b.distance - a.distance;
+        //return (a.calculateDistance < b.calculateDistance) ? 1 : ((b.calculateDistance < a.calculateDistance) ? -1 : 0);
+    });
     for (var i = 1; i <= 14; i++) {
         if (i <= clubs.length) {
             options["club" + i + "_distance"] = clubs[i - 1].distance;
@@ -88,11 +94,11 @@ setSettings();
 
 /////FUNCTIONS//////
 //////////////////////
-function distance(target) {
+function calculateDistance(target) {
     var targetLatitude   = target.lat;
     var targetLongitude  = target.lon;
-    var currentLatitude  = position.coords.latitude;
-    var currentLongitude = position.coords.longitude;
+    var currentLatitude  = currentPosition.coords.latitude;
+    var currentLongitude = currentPosition.coords.longitude;
 
     // noinspection LocalVariableNamingConventionJS
     var R    = 6371000; // Radius of the earth in km
@@ -115,7 +121,7 @@ var clubNumSuggest = -1;
 var fairwayFurthest = 0;//todo Make a user settings that the prefered club for longest hit on fairway is selected
 
 function clubSuggest(distanceTo, type) {
-    if (!options.enableClubSuggest || distanceTo === 0 || distanceTo === "") return ""; //If the distance is 0, suggest no club
+    if (!options.enableClubSuggest || distanceTo === 0 || distanceTo === "") return ""; //If the calculateDistance is 0, suggest no club
     clubNumSuggest = -1;
     var correction = 0;
     if (typeof variable !== 'undefined') {
@@ -131,9 +137,9 @@ function clubSuggest(distanceTo, type) {
         }
     }
 
-    //If no club was suggested, the target is further than the biggest distance
+    //If no club was suggested, the target is further than the biggest calculateDistance
     if (clubNumSuggest === -1) {
-        if (distance(holes[hole].teeBoxes[0]) < 50) {
+        if (calculateDistance(holes[hole].teeBoxes[0]) < 50) {
             clubNumSuggest = 0;
         } else {
             clubNumSuggest = fairwayFurthest;
@@ -148,7 +154,7 @@ function clubSuggest(distanceTo, type) {
 Accel.on('tap', function (e) {
     if (options.swingDetection) {
         //if speed is zero for a while
-        if (e.axis === 'x' && e.direction === -1 && position.coords.speed < 0.5) {
+        if (e.axis === 'x' && e.direction === -1 && currentPosition.coords.speed < 0.5) {
             //console.log("swing detected");
             startTracking();
         }
@@ -214,8 +220,8 @@ courseWindow.add(courseHoleCount);
 function updateCourseWindow() {
     course = coursesFound[courseResultNum];
     /*
-    var courseDistance=course.distance+"km";
-    if(options.units=="yards") courseDistance=(course.distance*0.621)+"mi";
+    var courseDistance=course.calculateDistance+"km";
+    if(options.units=="yards") courseDistance=(course.calculateDistance*0.621)+"mi";
     */
     courseName.text(course.name);
     courseHoleCount.text(course.holeCount + " holes");
@@ -247,9 +253,9 @@ courseWindow.on('click', 'select', function () {
     hole                      = 0;
     var closestDistanceToHole = 999;
     for (var i = 1; i <= course.holeCount; i++) {
-        if (distance(holes[i].teeBoxes[0]) < closestDistanceToHole) {
+        if (calculateDistance(holes[i].teeBoxes[0]) < closestDistanceToHole) {
             hole                  = i - 1;//because nextItem will ++
-            closestDistanceToHole = distance(holes[i].teeBoxes[0]);
+            closestDistanceToHole = calculateDistance(holes[i].teeBoxes[0]);
         }
     }
     //console.log("Hole selected after course select: "+(hole+1));
@@ -293,22 +299,6 @@ var holeNumber = new UI.Text({
     textAlign:       'left',
 });
 
-var distanceBackText = new UI.Text({
-    position: new Vector2(0, 30),
-    size:     new Vector2(65, 30),
-    text:     "",
-    color:    'black',
-    font:     'bitham-30-black'
-});
-var clubSuggestBack  = new UI.Text({
-    position: new Vector2(70, 30),
-    size:     new Vector2(74, 57),
-    text:     "",
-    color:    'black',
-    font:     'gothic-28-bold'
-
-});
-
 var hazardDescriptionText = new UI.Text({
     position: new Vector2(0, 60),
     size:     new Vector2(144, 57),
@@ -317,17 +307,36 @@ var hazardDescriptionText = new UI.Text({
     font:     'gothic-28-bold'
 });
 
-var distanceMiddleText = new UI.Text({
-    position: new Vector2(0, 60),
-    size:     new Vector2(65, 57),
+var distanceBackText = new UI.Text({
+    position: new Vector2(0, 30),
+    size:     new Vector2(65, 30),
     text:     "",
     color:    'black',
     font:     'bitham-30-black'
+});
+
+var clubSuggestBack = new UI.Text({
+    position: new Vector2(70, 30),
+    size:     new Vector2(74, 28),
+    text:     "",
+    color:    'black',
+    font:     'gothic-28-bold'
 
 });
-var clubSuggestMiddle  = new UI.Text({
+
+var distanceMiddleText = new UI.Text({
+    position:        options.largerText ? new Vector2(0, 63) : new Vector2(0, 60),
+    size:            options.largerText ? new Vector2(144, 61) : new Vector2(65, 30),
+    text:            "",
+    textAlign:       "center",
+    color:           options.invertColors ? 'white' : 'black',
+    backgroundColor: options.invertColors ? "black" : 'white',
+    font:            options.largerText ? 'roboto-bold-subset-49' : 'bitham-30-black'
+});
+
+var clubSuggestMiddle = new UI.Text({
     position: new Vector2(70, 60),
-    size:     new Vector2(74, 57),
+    size:     new Vector2(74, 28),
     text:     "",
     color:    'black',
     font:     'gothic-28-bold'
@@ -335,15 +344,16 @@ var clubSuggestMiddle  = new UI.Text({
 });
 
 var distanceFrontText = new UI.Text({
-    position: new Vector2(0, 90),
+    position: options.largerText ? new Vector2(0, 120) : new Vector2(0, 90),
     size:     new Vector2(65, 30),
     text:     "",
     color:    'black',
     font:     'bitham-30-black'
 });
-var clubSuggestFront  = new UI.Text({
-    position: new Vector2(70, 90),
-    size:     new Vector2(74, 57),
+
+var clubSuggestFront = new UI.Text({
+    position: options.largerText ? new Vector2(70, 120) : new Vector2(70, 90),
+    size:     new Vector2(74, 28),
     text:     "",
     color:    'black',
     font:     'gothic-28-bold'
@@ -351,7 +361,7 @@ var clubSuggestFront  = new UI.Text({
 });
 
 var distanceExtraText = new UI.Text({
-    position: new Vector2(0, 120),
+    position: options.largerText ? new Vector2(0, 139) : new Vector2(0, 120),
     size:     new Vector2(144, 30),
     text:     "",
     color:    'black',
@@ -388,7 +398,7 @@ distanceWindow.on('longClick', "down", function () {
 
 function nextItem() {
     hazardNum++;
-    //console.log("next item hole:"+hole+" hazard:"+hazardNum);
+    //console.log("next currentDistanceTarget hole:"+hole+" hazard:"+hazardNum);
 
     if (hazardNum < 0 || hazardNum > holes[hole].items.length) {
         //next hole
@@ -403,12 +413,12 @@ function nextItem() {
             var hazard = holes[hole].items[i];
             hazardNum=i;
             //console.log("checking hazard: "+JSON.stringify(hazard));
-            if(options.skipBunkers&&hazard.item=="bunker"){
+            if(options.skipBunkers&&hazard.currentDistanceTarget=="bunker"){
                 //console.log("skipped bunker:");
                 continue;
             }
 
-            if(distance(hazard.back)>=options.skipHazard){
+            if(calculateDistance(hazard.back)>=options.skipHazard){
                 //console.log("hazard selected "+i);
                 i=99;//stop the for loop
             }
@@ -419,13 +429,13 @@ function nextItem() {
     ////console.log(JSON.stringify(holes[hole]));
     //console.log(hazardNum+"==="+holes[hole].items.length+' evaluates '+(hazardNum===holes[hole].items.length));
     if (hazardNum < holes[hole].items.length && hazardNum >= 0) { //valid hazard num
-        item = holes[hole].items[hazardNum];
+        currentDistanceTarget = holes[hole].items[hazardNum];
         //console.log("next hazard");
     } else {//green
-        item = holes[hole].green;
+        currentDistanceTarget = holes[hole].green;
     }
-    //console.log(JSON.stringify(item));
-    holeNumber.text(hole + " " + item.type);
+    //console.log(JSON.stringify(currentDistanceTarget));
+    holeNumber.text(hole + " " + currentDistanceTarget.type);
     updateDistanceWindow();
 }
 
@@ -435,17 +445,17 @@ function previousItem() {
         hole--;
 
         if (hole === 0) hole = course.holeCount;
-        item      = holes[hole].green;
-        hazardNum = holes[hole].items.length;
+        currentDistanceTarget = holes[hole].green;
+        hazardNum             = holes[hole].items.length;
     } else {
-        item = holes[hole].items[hazardNum];
+        currentDistanceTarget = holes[hole].items[hazardNum];
     }
     console.log("hole " + hole);
     console.log("hazard " + hazardNum);
     console.log("holes " + JSON.stringify(holes));
-    console.log("item " + JSON.stringify(item));
+    console.log("currentDistanceTarget " + JSON.stringify(currentDistanceTarget));
 
-    holeNumber.text(hole + " " + item.type);
+    holeNumber.text(hole + " " + currentDistanceTarget.type);
     updateDistanceWindow();
 }
 
@@ -457,16 +467,16 @@ function startTracking() {
     //If no club is tracked
     console.log("start tracking. tracking club:" + trackingClub);
     if (trackingClub < 0) {
-        if ("middle" in item) {
-            clubSuggest(distance(item.middle));
+        if ("middle" in currentDistanceTarget) {
+            clubSuggest(calculateDistance(currentDistanceTarget.middle));
         } else {
-            clubSuggest(distance(item.front));
+            clubSuggest(calculateDistance(currentDistanceTarget.front));
         }
         console.log("suggest club: " + clubNumSuggest);
         clubsMenu.selection(0, clubNumSuggest);
 
-        trackingFrom.lat = position.coords.latitude;
-        trackingFrom.lon = position.coords.longitude;
+        trackingFrom.lat = currentPosition.coords.latitude;
+        trackingFrom.lon = currentPosition.coords.longitude;
         clubsMenu.show();
 
     } else {
@@ -482,7 +492,7 @@ function updateDistanceWindow() {
 
 
     //Go to next hole if its close.
-    if (hole + 1 in holes && distance(holes[hole + 1].teeBoxes[0]) < options.holeAdvance) {
+    if (hole + 1 in holes && calculateDistance(holes[hole + 1].teeBoxes[0]) < options.holeAdvance) {
         hazardNum = 99;//because hazardNum>items.length will go next hole.
         nextItem();
         return;
@@ -490,20 +500,22 @@ function updateDistanceWindow() {
     //Todo Go to the next hazard if its close
     //if you pass a hazard.. Going back to a previous hole is blocked this way
 
-    var distanceFront  = "";
-    var distanceMiddle = "";
-    var distanceBack   = "";
-    if ('front' in item) {
-        distanceFront = distance(item.front);
+    var distanceFront  = 0;
+    var distanceMiddle = 0;
+    var distanceBack   = 0;
+
+    if ('front' in currentDistanceTarget) {
+        distanceFront = calculateDistance(currentDistanceTarget.front);
     }
-    if ('middle' in item) {
-        distanceMiddle = distance(item.middle);
+    if ('middle' in currentDistanceTarget) {
+        distanceMiddle = calculateDistance(currentDistanceTarget.middle);
     }
-    if ('back' in item) {
-        distanceBack = distance(item.back);
+    if ('back' in currentDistanceTarget) {
+        distanceBack = calculateDistance(currentDistanceTarget.back);
     }
+
     //manualy set front and back of green
-    if (item.type === "green" && !('front' in item) && !('back' in item)) {
+    if (currentDistanceTarget.type === "green" && !('front' in currentDistanceTarget) && !('back' in currentDistanceTarget)) {
         distanceFront = Math.min(distanceMiddle - 10, 999);
         distanceBack  = Math.min(distanceMiddle + 10, 999);
     }
@@ -519,7 +531,7 @@ function updateDistanceWindow() {
 
 
     if (trackingClub >= 0) {
-        var distanceTracked = distance(trackingFrom);
+        var distanceTracked = calculateDistance(trackingFrom);
         distanceExtraText.text(clubs[trackingClub].name + " hit: " + distanceTracked);
 
         trackingDistanceText.text("hit: " + distanceTracked);
@@ -616,11 +628,11 @@ trackingWindow.add(trackingDistanceText);
 trackingWindow.add(discardText);
 
 trackingWindow.on('click', "up", function () {
-    var distanceTracked = distance(trackingFrom);
+    var distanceTracked = calculateDistance(trackingFrom);
     Settings.option("club" + clubs[trackingClub].setting_id + "_distance", distanceTracked);
-    clubs[trackingClub].distance = distanceTracked;
-    //console.log("distance for "+clubs[trackingClub].name+" with id "+"club"+clubs[trackingClub].setting_id+"_distance"+" set to "+distanceTracked);
-    trackingClub                 = -2;
+    clubs[trackingClub].calculateDistanceFromCurrentPosition = distanceTracked;
+    //console.log("calculateDistance for "+clubs[trackingClub].name+" with id "+"club"+clubs[trackingClub].setting_id+"_distance"+" set to "+distanceTracked);
+    trackingClub                                             = -2;
     trackingWindow.hide();
     distanceExtraText.text("");
     clubsMenuItems();
@@ -637,7 +649,7 @@ trackingWindow.on('click', "down", function () {
 var GPSFix = 0;
 
 function newPosition(pos) {
-    position = pos;
+    currentPosition = pos;
     if (courseSelected) updateDistanceWindow();
 
     //only for first setup
@@ -651,7 +663,7 @@ function getCourses() {
     //Get the course
 
     ajax({
-            url:  'https://fitbitgolf.com/apiv2.php?radius=' + options.searchRadius + '&lat=' + position.coords.latitude + '&lon=' + position.coords.longitude,
+            url:  'https://fitbitgolf.com/apiv2.php?radius=' + options.searchRadius + '&lat=' + currentPosition.coords.latitude + '&lon=' + currentPosition.coords.longitude,
             type: 'json'
         },
         function (data) {
@@ -693,7 +705,7 @@ function getLocationUpdate() {
 }
 
 if (player) {
-    //position = {timestamp:1468325280459,  coords: {   latitude:52.5266952217286,   longitude:4.92219552397728,   speed:0,   heading:178  }};//hole 1
+    //currentPosition = {timestamp:1468325280459,  coords: {   latitude:52.5266952217286,   longitude:4.92219552397728,   speed:0,   heading:178  }};//hole 1
     var position1 = {coords: {latitude: 52.525872, longitude: 4.923372}};//hole 2 afslagplaats
     var position2 = {coords: {latitude: 52.524632, longitude: 4.922341}};//hole 2 voor water
     var position3 = {coords: {latitude: 52.524060, longitude: 4.921954}};//net voor bij water
@@ -702,7 +714,7 @@ if (player) {
 
     var position  = position1;
     var positions = [position1, position2, position3, position4, position5];
-    //course = {"course_id":"24","name":"Beemster 9 holes","lat":"52.5273514","lon":"4.9219222","adres":"volgerweg 42, beemster","holes":"9","course_rating":"62.1","slope_rating":"100","positions":"{\"0\":{\"address\":\"volgerweg 42, beemster\"},\"1\":{\"tee\":{\"yellow\":{\"lat\":52.526757231367995,\"lon\":4.92224782705307},\"red\":{\"lat\":52.52657446586387,\"lon\":4.922172725200653}},\"green\":{\"front\":{\"lat\":52.525500703168284,\"lon\":4.922215640544891},\"middle\":{\"lat\":52.52539626284275,\"lon\":4.9222531914711},\"back\":{\"lat\":52.525282030952354,\"lon\":4.922280013561249}},\"dogleg\":{},\"items\":[]},\"2\":{\"tee\":{\"yellow\":{\"lat\":52.525866242352066,\"lon\":4.923454821109772},\"red\":{\"lat\":52.525614934489994,\"lon\":4.923304617404938}},\"green\":{\"front\":{\"lat\":52.52346080811934,\"lon\":4.921769052743912},\"middle\":{\"lat\":52.52336125881669,\"lon\":4.921728819608688},\"back\":{\"lat\":52.52329924438294,\"lon\":4.921667128801346}},\"dogleg\":{},\"items\":[{\"item\":\"water\",\"distanceToHole\":136,\"front\":{\"lat\":52.52456073129846,\"lon\":4.922152608633041},\"back\":{\"lat\":52.5243926439308,\"lon\":4.92205336689949}},{\"item\":\"bunker\",\"distanceToHole\":106,\"front\":{\"lat\":52.52430288827689,\"lon\":4.921986311674118},\"back\":{\"lat\":52.52414948728015,\"lon\":4.9218253791332245}}]},\"3\":{\"tee\":{\"yellow\":{\"lat\":52.52302997016847,\"lon\":4.921625554561615},\"red\":{\"lat\":52.52311483252328,\"lon\":4.921346604824066}},\"green\":{\"front\":{\"lat\":52.523969974795214,\"lon\":4.918321073055267},\"middle\":{\"lat\":52.52394386382721,\"lon\":4.918122589588165},\"back\":{\"lat\":52.52394712769907,\"lon\":4.917945563793182}},\"dogleg\":{\"middle\":{\"lat\":52.52394549576315,\"lon\":4.918925911188126}},\"items\":[{\"item\":\"water\",\"distanceToHole\":124,\"front\":{\"lat\":52.52361421152112,\"lon\":4.919870048761368},\"back\":{\"lat\":52.52362073931355,\"lon\":4.91980567574501}},{\"item\":\"bunker\",\"distanceToHole\":62,\"front\":{\"lat\":52.52408094623613,\"lon\":4.91901308298111},\"back\":{\"lat\":52.52414948728015,\"lon\":4.918669760227203}},{\"item\":\"water\",\"distanceToHole\":36,\"front\":{\"lat\":52.52386553083003,\"lon\":4.918637573719025},\"back\":{\"lat\":52.52389980153348,\"lon\":4.9183908104896545}}]},\"4\":{\"tee\":{\"yellow\":{\"lat\":52.524554203645685,\"lon\":4.918491393327713},\"red\":{\"lat\":52.524678228882216,\"lon\":4.918700605630875}},\"green\":{\"front\":{\"lat\":52.52530161358323,\"lon\":4.919585734605789},\"middle\":{\"lat\":52.525368520839535,\"lon\":4.919706434011459},\"back\":{\"lat\":52.52545664243623,\"lon\":4.919867366552353}},\"dogleg\":{},\"items\":[{\"item\":\"water\",\"distanceToHole\":45,\"front\":{\"lat\":52.525066621436416,\"lon\":4.919255822896957},\"back\":{\"lat\":52.5251008912028,\"lon\":4.91931214928627}},{\"item\":\"bunker\",\"distanceToHole\":22,\"front\":{\"lat\":52.52517432632642,\"lon\":4.919629991054535},\"back\":{\"lat\":52.52525592076425,\"lon\":4.919733256101608}}]},\"5\":{\"tee\":{\"yellow\":{\"lat\":52.52471249895162,\"lon\":4.9183304607868195},\"red\":{\"lat\":52.52497523526204,\"lon\":4.918469935655594}},\"green\":{\"front\":{\"lat\":52.52759761653165,\"lon\":4.920387715101242},\"middle\":{\"lat\":52.52771184239995,\"lon\":4.920473545789719},\"back\":{\"lat\":52.5278407540945,\"lon\":4.920524507761002}},\"dogleg\":{},\"items\":[{\"item\":\"bunker\",\"distanceToHole\":203,\"front\":{\"lat\":52.52604574708751,\"lon\":4.919237047433853},\"back\":{\"lat\":52.526186086642454,\"lon\":4.919384568929672}},{\"item\":\"bunker\",\"distanceToHole\":181,\"front\":{\"lat\":52.5261289717614,\"lon\":4.919853955507278},\"back\":{\"lat\":52.52627747029761,\"lon\":4.919945150613785}}]},\"6\":{\"tee\":{\"yellow\":{\"lat\":52.52820301024847,\"lon\":4.920444041490555},\"red\":{\"lat\":52.52823727756781,\"lon\":4.920629113912582}},\"green\":{\"front\":{\"lat\":52.527834226929194,\"lon\":4.921109229326248},\"middle\":{\"lat\":52.52774937369183,\"lon\":4.921246021986008},\"back\":{\"lat\":52.52769226084362,\"lon\":4.921342581510544}},\"dogleg\":{},\"items\":[]},\"7\":{\"tee\":{\"yellow\":{\"lat\":52.527357741241296,\"lon\":4.92119774222374},\"red\":{\"lat\":52.52713581463586,\"lon\":4.920991212129593}},\"green\":{\"front\":{\"lat\":52.52480878138444,\"lon\":4.920247569680214},\"middle\":{\"lat\":52.524711682997875,\"lon\":4.920232817530632},\"back\":{\"lat\":52.52462682372797,\"lon\":4.920181855559349}},\"dogleg\":{},\"items\":[{\"item\":\"bunker\",\"distanceToHole\":140,\"front\":{\"lat\":52.52593478061035,\"lon\":4.9207256734371185},\"back\":{\"lat\":52.5257960721197,\"lon\":4.9206773936748505}},{\"item\":\"bunker\",\"distanceToHole\":114,\"front\":{\"lat\":52.52574058860077,\"lon\":4.920234829187393},\"back\":{\"lat\":52.5256084069939,\"lon\":4.920170456171036}},{\"item\":\"water\",\"distanceToHole\":21,\"front\":{\"lat\":52.524896904104104,\"lon\":4.920293837785721},\"back\":{\"lat\":52.52484468325452,\"lon\":4.920269697904587}}]},\"8\":{\"tee\":{\"yellow\":{\"lat\":52.52452319728183,\"lon\":4.918724745512009},\"red\":{\"lat\":52.5244807674853,\"lon\":4.918984919786453}},\"green\":{\"front\":{\"lat\":52.523801885166975,\"lon\":4.921052902936935},\"middle\":{\"lat\":52.523730079692825,\"lon\":4.921165555715561},\"back\":{\"lat\":52.523610947624505,\"lon\":4.921262115240097}},\"dogleg\":{},\"items\":[{\"item\":\"water\",\"distanceToHole\":85,\"front\":{\"lat\":52.524177230053304,\"lon\":4.920154362916946},\"back\":{\"lat\":52.52415438306491,\"lon\":4.920221418142319}}]},\"9\":{\"tee\":{\"yellow\":{\"lat\":52.52414459149484,\"lon\":4.921390861272812},\"red\":{\"lat\":52.524376324734654,\"lon\":4.921377450227737}},\"green\":{\"front\":{\"lat\":52.52681108177325,\"lon\":4.921479374170303},\"middle\":{\"lat\":52.52693020516248,\"lon\":4.921514242887497},\"back\":{\"lat\":52.527007716783345,\"lon\":4.921528324484825}},\"dogleg\":{\"middle\":{\"lat\":52.52621545998091,\"lon\":4.921216517686844}},\"items\":[{\"item\":\"water\",\"distanceToHole\":125,\"front\":{\"lat\":52.52582544571901,\"lon\":4.921193718910217},\"back\":{\"lat\":52.52623014664278,\"lon\":4.921423047780991}},{\"item\":\"bunker\",\"distanceToHole\":124,\"front\":{\"lat\":52.52581483858816,\"lon\":4.921632930636406},\"back\":{\"lat\":52.5259633381864,\"lon\":4.921516254544258}}]}}","distance":"86.9"};
+    //course = {"course_id":"24","name":"Beemster 9 holes","lat":"52.5273514","lon":"4.9219222","adres":"volgerweg 42, beemster","holes":"9","course_rating":"62.1","slope_rating":"100","positions":"{\"0\":{\"address\":\"volgerweg 42, beemster\"},\"1\":{\"tee\":{\"yellow\":{\"lat\":52.526757231367995,\"lon\":4.92224782705307},\"red\":{\"lat\":52.52657446586387,\"lon\":4.922172725200653}},\"green\":{\"front\":{\"lat\":52.525500703168284,\"lon\":4.922215640544891},\"middle\":{\"lat\":52.52539626284275,\"lon\":4.9222531914711},\"back\":{\"lat\":52.525282030952354,\"lon\":4.922280013561249}},\"dogleg\":{},\"items\":[]},\"2\":{\"tee\":{\"yellow\":{\"lat\":52.525866242352066,\"lon\":4.923454821109772},\"red\":{\"lat\":52.525614934489994,\"lon\":4.923304617404938}},\"green\":{\"front\":{\"lat\":52.52346080811934,\"lon\":4.921769052743912},\"middle\":{\"lat\":52.52336125881669,\"lon\":4.921728819608688},\"back\":{\"lat\":52.52329924438294,\"lon\":4.921667128801346}},\"dogleg\":{},\"items\":[{\"currentDistanceTarget\":\"water\",\"distanceToHole\":136,\"front\":{\"lat\":52.52456073129846,\"lon\":4.922152608633041},\"back\":{\"lat\":52.5243926439308,\"lon\":4.92205336689949}},{\"currentDistanceTarget\":\"bunker\",\"distanceToHole\":106,\"front\":{\"lat\":52.52430288827689,\"lon\":4.921986311674118},\"back\":{\"lat\":52.52414948728015,\"lon\":4.9218253791332245}}]},\"3\":{\"tee\":{\"yellow\":{\"lat\":52.52302997016847,\"lon\":4.921625554561615},\"red\":{\"lat\":52.52311483252328,\"lon\":4.921346604824066}},\"green\":{\"front\":{\"lat\":52.523969974795214,\"lon\":4.918321073055267},\"middle\":{\"lat\":52.52394386382721,\"lon\":4.918122589588165},\"back\":{\"lat\":52.52394712769907,\"lon\":4.917945563793182}},\"dogleg\":{\"middle\":{\"lat\":52.52394549576315,\"lon\":4.918925911188126}},\"items\":[{\"currentDistanceTarget\":\"water\",\"distanceToHole\":124,\"front\":{\"lat\":52.52361421152112,\"lon\":4.919870048761368},\"back\":{\"lat\":52.52362073931355,\"lon\":4.91980567574501}},{\"currentDistanceTarget\":\"bunker\",\"distanceToHole\":62,\"front\":{\"lat\":52.52408094623613,\"lon\":4.91901308298111},\"back\":{\"lat\":52.52414948728015,\"lon\":4.918669760227203}},{\"currentDistanceTarget\":\"water\",\"distanceToHole\":36,\"front\":{\"lat\":52.52386553083003,\"lon\":4.918637573719025},\"back\":{\"lat\":52.52389980153348,\"lon\":4.9183908104896545}}]},\"4\":{\"tee\":{\"yellow\":{\"lat\":52.524554203645685,\"lon\":4.918491393327713},\"red\":{\"lat\":52.524678228882216,\"lon\":4.918700605630875}},\"green\":{\"front\":{\"lat\":52.52530161358323,\"lon\":4.919585734605789},\"middle\":{\"lat\":52.525368520839535,\"lon\":4.919706434011459},\"back\":{\"lat\":52.52545664243623,\"lon\":4.919867366552353}},\"dogleg\":{},\"items\":[{\"currentDistanceTarget\":\"water\",\"distanceToHole\":45,\"front\":{\"lat\":52.525066621436416,\"lon\":4.919255822896957},\"back\":{\"lat\":52.5251008912028,\"lon\":4.91931214928627}},{\"currentDistanceTarget\":\"bunker\",\"distanceToHole\":22,\"front\":{\"lat\":52.52517432632642,\"lon\":4.919629991054535},\"back\":{\"lat\":52.52525592076425,\"lon\":4.919733256101608}}]},\"5\":{\"tee\":{\"yellow\":{\"lat\":52.52471249895162,\"lon\":4.9183304607868195},\"red\":{\"lat\":52.52497523526204,\"lon\":4.918469935655594}},\"green\":{\"front\":{\"lat\":52.52759761653165,\"lon\":4.920387715101242},\"middle\":{\"lat\":52.52771184239995,\"lon\":4.920473545789719},\"back\":{\"lat\":52.5278407540945,\"lon\":4.920524507761002}},\"dogleg\":{},\"items\":[{\"currentDistanceTarget\":\"bunker\",\"distanceToHole\":203,\"front\":{\"lat\":52.52604574708751,\"lon\":4.919237047433853},\"back\":{\"lat\":52.526186086642454,\"lon\":4.919384568929672}},{\"currentDistanceTarget\":\"bunker\",\"distanceToHole\":181,\"front\":{\"lat\":52.5261289717614,\"lon\":4.919853955507278},\"back\":{\"lat\":52.52627747029761,\"lon\":4.919945150613785}}]},\"6\":{\"tee\":{\"yellow\":{\"lat\":52.52820301024847,\"lon\":4.920444041490555},\"red\":{\"lat\":52.52823727756781,\"lon\":4.920629113912582}},\"green\":{\"front\":{\"lat\":52.527834226929194,\"lon\":4.921109229326248},\"middle\":{\"lat\":52.52774937369183,\"lon\":4.921246021986008},\"back\":{\"lat\":52.52769226084362,\"lon\":4.921342581510544}},\"dogleg\":{},\"items\":[]},\"7\":{\"tee\":{\"yellow\":{\"lat\":52.527357741241296,\"lon\":4.92119774222374},\"red\":{\"lat\":52.52713581463586,\"lon\":4.920991212129593}},\"green\":{\"front\":{\"lat\":52.52480878138444,\"lon\":4.920247569680214},\"middle\":{\"lat\":52.524711682997875,\"lon\":4.920232817530632},\"back\":{\"lat\":52.52462682372797,\"lon\":4.920181855559349}},\"dogleg\":{},\"items\":[{\"currentDistanceTarget\":\"bunker\",\"distanceToHole\":140,\"front\":{\"lat\":52.52593478061035,\"lon\":4.9207256734371185},\"back\":{\"lat\":52.5257960721197,\"lon\":4.9206773936748505}},{\"currentDistanceTarget\":\"bunker\",\"distanceToHole\":114,\"front\":{\"lat\":52.52574058860077,\"lon\":4.920234829187393},\"back\":{\"lat\":52.5256084069939,\"lon\":4.920170456171036}},{\"currentDistanceTarget\":\"water\",\"distanceToHole\":21,\"front\":{\"lat\":52.524896904104104,\"lon\":4.920293837785721},\"back\":{\"lat\":52.52484468325452,\"lon\":4.920269697904587}}]},\"8\":{\"tee\":{\"yellow\":{\"lat\":52.52452319728183,\"lon\":4.918724745512009},\"red\":{\"lat\":52.5244807674853,\"lon\":4.918984919786453}},\"green\":{\"front\":{\"lat\":52.523801885166975,\"lon\":4.921052902936935},\"middle\":{\"lat\":52.523730079692825,\"lon\":4.921165555715561},\"back\":{\"lat\":52.523610947624505,\"lon\":4.921262115240097}},\"dogleg\":{},\"items\":[{\"currentDistanceTarget\":\"water\",\"distanceToHole\":85,\"front\":{\"lat\":52.524177230053304,\"lon\":4.920154362916946},\"back\":{\"lat\":52.52415438306491,\"lon\":4.920221418142319}}]},\"9\":{\"tee\":{\"yellow\":{\"lat\":52.52414459149484,\"lon\":4.921390861272812},\"red\":{\"lat\":52.524376324734654,\"lon\":4.921377450227737}},\"green\":{\"front\":{\"lat\":52.52681108177325,\"lon\":4.921479374170303},\"middle\":{\"lat\":52.52693020516248,\"lon\":4.921514242887497},\"back\":{\"lat\":52.527007716783345,\"lon\":4.921528324484825}},\"dogleg\":{\"middle\":{\"lat\":52.52621545998091,\"lon\":4.921216517686844}},\"items\":[{\"currentDistanceTarget\":\"water\",\"distanceToHole\":125,\"front\":{\"lat\":52.52582544571901,\"lon\":4.921193718910217},\"back\":{\"lat\":52.52623014664278,\"lon\":4.921423047780991}},{\"currentDistanceTarget\":\"bunker\",\"distanceToHole\":124,\"front\":{\"lat\":52.52581483858816,\"lon\":4.921632930636406},\"back\":{\"lat\":52.5259633381864,\"lon\":4.921516254544258}}]}}","calculateDistance":"86.9"};
     getCourses();
     if (player == 2) {
         player = 0;
