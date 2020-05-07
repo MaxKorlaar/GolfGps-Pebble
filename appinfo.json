@@ -4,8 +4,8 @@
     "configurable",
     "location"
   ],
-  "companyName": "Meiguro",
-  "longName": "Pebble.js",
+  "companyName": "Smart Golf",
+  "longName": "GOLF GPS range finder",
   "resources": {
     "media": [
       {
@@ -52,15 +52,15 @@
     ]
   },
   "sdkVersion": "3",
-  "shortName": "Pebble.js",
+  "shortName": "Golf GPS",
   "targetPlatforms": [
     "aplite",
     "basalt",
     "chalk"
   ],
-  "uuid": "58bbe6e9-240d-40c6-b221-4243c8d388e3",
+  "uuid": "08317354-b7e2-412e-a7f9-cd9f7ae981ed",
   "versionCode": 1,
-  "versionLabel": "0.4",
+  "versionLabel": "1.20",
   "watchapp": {
     "watchface": false
   }
