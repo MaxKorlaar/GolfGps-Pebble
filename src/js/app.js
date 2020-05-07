@@ -55,23 +55,18 @@ Pebble.addEventListener('webviewclosed', function (e) {
 
 function setSettings() {
     console.log("setSettings()");
-    //optionsArray = ["units","email"]
+
     if (!('units' in options)) options.units = "meters";
     if (!('email' in options)) options.email = "";
     if (!('searchRadius' in options)) options.searchRadius = 50;
-    if (options.email === "") {
-        setTimeout(function () {
-            settingAlert.show();
-        }, 100);
-    }
-
+    if (!('swingDetection' in options)) options.swingDetection = true;
 
     //Settings the clubs
     clubs = [];
     for (var i = 1; i <= 14; i++) {
-        var club_distance = parseInt(options["club" + i + "_distance"]);
-        var club_name     = options["club" + i + "_name"];
-        if (club_distance > 0 && club_name !== '') clubs.push({name: club_name, distance: club_distance, setting_id: i});
+        var clubDistance = parseInt(options["club" + i + "_distance"]);
+        var clubName     = options["club" + i + "_name"];
+        if (clubDistance > 0 && clubName !== '') clubs.push({name: clubName, distance: clubDistance, setting_id: i});
     }
     //Sort clubs for large distance to small one
     clubs.sort(function (a, b) { return (a.distance < b.distance) ? 1 : ((b.distance < a.distance) ? -1 : 0); });
@@ -94,17 +89,19 @@ setSettings();
 /////FUNCTIONS//////
 //////////////////////
 function distance(target) {
-    var lat1 = target.lat;
-    var lon1 = target.lon;
-    var lat2 = position.coords.latitude;
-    var lon2 = position.coords.longitude;
+    var targetLatitude   = target.lat;
+    var targetLongitude  = target.lon;
+    var currentLatitude  = position.coords.latitude;
+    var currentLongitude = position.coords.longitude;
 
+    // noinspection LocalVariableNamingConventionJS
     var R    = 6371000; // Radius of the earth in km
-    var dLat = (lat2 - lat1) * 0.01745329251;  // deg2rad below
-    var dLon = (lon2 - lon1) * 0.01745329251;
-    var a    = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos((lat1) * 0.01745329251) * Math.cos((lat2) * 0.01745329251) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    var dLat = (currentLatitude - targetLatitude) * 0.01745329251;  // deg2rad below
+    var dLon = (currentLongitude - targetLongitude) * 0.01745329251;
+    var a    = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos((targetLatitude) * 0.01745329251) * Math.cos((currentLatitude) * 0.01745329251) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     var c    = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     var d    = R * c; // Distance in km
+
     if ('units' in options && options.units === "yards") d *= 1.0936133;
     if (d >= 1000) {
         return 999;
@@ -116,13 +113,14 @@ function distance(target) {
 var clubNumSuggest = -1;
 
 var fairwayFurthest = 0;//todo Make a user settings that the prefered club for longest hit on fairway is selected
+
 function clubSuggest(distanceTo, type) {
     if (!options.enableClubSuggest || distanceTo === 0 || distanceTo === "") return ""; //If the distance is 0, suggest no club
     clubNumSuggest = -1;
     var correction = 0;
     if (typeof variable !== 'undefined') {
         // the variable is defined
-        if (type === "carry") distanceTo = distanceTo + Math.max(distanceTo - 80, 0) * 0.3;
+        if (type === "carry") distanceTo += Math.max(distanceTo - 80, 0) * 0.3;
         if (type === "inFront") correction = 1;
     }
 
@@ -142,20 +140,19 @@ function clubSuggest(distanceTo, type) {
         }
     }
 
-    clubNumSuggest = clubNumSuggest + correction;//If we have to stay in fron 1 club less is used.
-    var suggestion = clubs[clubNumSuggest].name;
-
-    return suggestion;
+    clubNumSuggest += correction;//If we have to stay in fron 1 club less is used.
+    return clubs[clubNumSuggest].name;
 }
 
 ////////Swing detection////
 Accel.on('tap', function (e) {
-    //if speed is zero for a while
-    if (e.axis === 'x' && e.direction === -1 && position.coords.speed < 0.5) {
-        //console.log("swing detected");
-        startTracking();
+    if (options.swingDetection) {
+        //if speed is zero for a while
+        if (e.axis === 'x' && e.direction === -1 && position.coords.speed < 0.5) {
+            //console.log("swing detected");
+            startTracking();
+        }
     }
-
 });
 
 ////////Settings warning menu///////////
