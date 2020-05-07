@@ -38,16 +38,16 @@ Pebble.addEventListener('showConfiguration', function (e) {
 
 Pebble.addEventListener('webviewclosed', function (e) {
 
-	if (e && !e.response) {
-		return;
-	}
-	var dict = clay.getSettings(e.response);
-	// Save the Clay settings to the Settings module. 
-	Settings.option(dict);
-	options = Settings.option();
-	console.log(JSON.stringify(options));
+    if (e && !e.response) {
+        return;
+    }
+    var dict = clay.getSettings(e.response);
+    // Save the Clay settings to the Settings module.
+    Settings.option(dict);
+    options = Settings.option();
+    console.log(JSON.stringify(options));
 
-	setSettings();
+    setSettings();
 
 });
 
@@ -112,27 +112,30 @@ var clubNumSuggest = -1;
 
 var fairwayFurthest = 0;//todo Make a user settings that the prefered club for longest hit on fairway is selected
 function clubSuggest(distanceTo, type) {
-	if (!options.enableClubSuggest || distanceTo === 0 || distanceTo === "") return ""; //If the distance is 0, suggest no club
-	clubNumSuggest = -1;
-	var correction = 0;
-	if (typeof variable !== 'undefined') {
-		// the variable is defined
-		if (type === "carry") distanceTo = distanceTo + Math.max(distanceTo - 80, 0) * 0.3;
-		if (type === "inFront") correction = 1;
-	}
+    if (!options.enableClubSuggest || distanceTo === 0 || distanceTo === "") return ""; //If the distance is 0, suggest no club
+    clubNumSuggest = -1;
+    var correction = 0;
+    if (typeof variable !== 'undefined') {
+        // the variable is defined
+        if (type === "carry") distanceTo = distanceTo + Math.max(distanceTo - 80, 0) * 0.3;
+        if (type === "inFront") correction = 1;
+    }
 
-	//Loop trough array. Club selection will 
-	for (var i = 0; i < clubs.length; i++) {
-		if (clubs[i].distance >= distanceTo) {
-			clubNumSuggest = i + correction;
-		}
-	}
+    //Loop trough array. Club selection will
+    for (var i = 0; i < clubs.length; i++) {
+        if (clubs[i].distance >= distanceTo) {
+            clubNumSuggest = i + correction;
+        }
+    }
 
-	//If no club was suggested, the target is further than the biggest distance
-	if (clubNumSuggest === -1) {
-		if (distance(holes[hole].teeBoxes[0]) < 50) clubNumSuggest = 0;
-		else clubNumSuggest = fairwayFurthest;
-	}
+    //If no club was suggested, the target is further than the biggest distance
+    if (clubNumSuggest === -1) {
+        if (distance(holes[hole].teeBoxes[0]) < 50) {
+            clubNumSuggest = 0;
+        } else {
+            clubNumSuggest = fairwayFurthest;
+        }
+    }
 
 	clubNumSuggest = clubNumSuggest + correction;//If we have to stay in fron 1 club less is used.
 	var suggestion = clubs[clubNumSuggest].name;
@@ -203,10 +206,10 @@ courseWindow.add(courseHoleCount);
 
 function updateCourseWindow() {
 	course = coursesFound[courseResultNum];
-	/*
-	var courseDistance=course.distance+"km";
-	if(options.units=="yards") courseDistance=(course.distance*0.621)+"mi"; 
-	*/
+    /*
+    var courseDistance=course.distance+"km";
+    if(options.units=="yards") courseDistance=(course.distance*0.621)+"mi";
+    */
 	courseName.text(course.name);
 	courseHoleCount.text(course.holeCount + " holes");
 }
@@ -396,24 +399,24 @@ function nextItem() {
 		if (hole > course.holeCount) hole = 1;//There is no hole 19
 		//console.log("next hole: "+hole);
 		hazardNum = 0;
-		/*
-		
-		
-		for(var i=hazardNum;i<holes[hole].items.length;i++){
-			var hazard = holes[hole].items[i];
-			hazardNum=i;
-			//console.log("checking hazard: "+JSON.stringify(hazard));
-			if(options.skipBunkers&&hazard.item=="bunker"){
-				//console.log("skipped bunker:");
-				continue;
-			}
-			
-			if(distance(hazard.back)>=options.skipHazard){
-				//console.log("hazard selected "+i);
-				i=99;//stop the for loop
-			}
-		}
-		*/
+        /*
+
+
+        for(var i=hazardNum;i<holes[hole].items.length;i++){
+            var hazard = holes[hole].items[i];
+            hazardNum=i;
+            //console.log("checking hazard: "+JSON.stringify(hazard));
+            if(options.skipBunkers&&hazard.item=="bunker"){
+                //console.log("skipped bunker:");
+                continue;
+            }
+
+            if(distance(hazard.back)>=options.skipHazard){
+                //console.log("hazard selected "+i);
+                i=99;//stop the for loop
+            }
+        }
+        */
 	}
 
 	////console.log(JSON.stringify(holes[hole]));
@@ -646,21 +649,23 @@ function newPosition(pos) {
 }
 
 function getCourses() {
-	homeWindow.subtitle("GPS found, searching for courses");
-	//Get the course
+    homeWindow.subtitle("GPS found, searching for courses");
+    //Get the course
 
-	//console.log('http://pieteroskam.nl/pebbleGolf/apiv2.php?radius='+options.searchRadius+'&lat='+position.coords.latitude+'&lon='+position.coords.longitude+'&email='+options.email);
-	ajax({ url: 'https://fitbitgolf.com/apiv2.php?radius=' + options.searchRadius + '&lat=' + position.coords.latitude + '&lon=' + position.coords.longitude + '&email=' + options.email, type: 'json' },
-		function (data, status, req) {
-			if (data.length === 0) {
-				//console.log("no courses found");
-				homeWindow.subtitle("No courses found. You can add your course within 10 minutes on pieteroskam.nl/pebbleGolf");
-			} else {
+    ajax({
+            url:  'https://fitbitgolf.com/apiv2.php?radius=' + options.searchRadius + '&lat=' + position.coords.latitude + '&lon=' + position.coords.longitude,
+            type: 'json'
+        },
+        function (data, status, req) {
+            if (data.length === 0) {
+                //console.log("no courses found");
+                homeWindow.subtitle("No courses found. You can add your course within 10 minutes on fitbitgolf.com");
+            } else {
 
-				coursesFound = data;
-				//console.log(JSON.stringify(coursesFound));
-				courseWindow.show();
-				updateCourseWindow();
+                coursesFound = data;
+                //console.log(JSON.stringify(coursesFound));
+                courseWindow.show();
+                updateCourseWindow();
 				homeWindow.title("Close app?");
 				homeWindow.subtitle("Press back to close the app");
 			}
